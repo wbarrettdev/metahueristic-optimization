@@ -32,12 +32,11 @@ def is_solution(assignment: dict[Any, Any], clauses: list[Any], cost: int) -> in
             if value < 0:
                 polarity = False
                 value *= -1
-
             check_assignment = assignment[value]
             if check_assignment == polarity:
                 satisfied = True
-        if satisfied != True:
-            cost -= -1
+        if satisfied == True:
+            cost -= 1
     return cost
 
 
@@ -60,8 +59,8 @@ if __name__ == "__main__":
     assignment, _ = readSolution(sol_path)
 
     cost = is_solution(assignment, clauses, len(clauses))
-    if cost == len(clauses):
-        print(f"SOLUTION {cnf_path} {sol_path}" )
+    if cost == 0:
+        print(f"satisfiable {cnf_path} {sol_path}" )
     else:
         print(f"Cost {cnf_path} {sol_path} {cost}")
         print("Not the Solution")
