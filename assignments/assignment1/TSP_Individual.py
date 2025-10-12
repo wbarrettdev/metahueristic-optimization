@@ -12,7 +12,13 @@ import random
 class Individual:
     def __init__(self, _size, _data, _initH, _d, cgenes):
         """
-        Parameters and general variables
+        Initializes a chromosome/individual:
+        - self.fitness: Fitness value of the individual (initially 0)
+        - self.genes: List representing a tour
+        - self.genSize: Number of cities in the tour
+        - self.data: Dictionary of city data
+        - self.init: Initialization heuristic flag (True for insertion heuristic, False for random tour)
+        - self.dists: Distance matrix between cities
         """
         self.fitness    = 0
         self.genes      = []
@@ -23,7 +29,7 @@ class Individual:
 
         if cgenes: # Child genes from crossover
             self.genes = cgenes
-        else:   # Initialisation of genes
+        else:   # Initialization of genes
             if self.init:
                 self.genes, self.fitness = self.insertion_heuristic1()
             else:
@@ -49,13 +55,14 @@ class Individual:
         for i in range(0, self.genSize-1):
             self.fitness += self.dists[self.genes[i]-1, self.genes[i+1]-1]
 
+
     def insertion_heuristic1(self):
         unvisited = list(self.data.keys())
         tCost = 0
 
         # Randomly choose a city to start the tour
         cIndex = random.randint(0, len(self.data)-1)
-        tour = [unvisited[cIndex]] #Initialise tour to this city
+        tour = [unvisited[cIndex]] #Initialize tour to this city
         del unvisited[cIndex] # Remove from unvisited
         current_city = tour[0] # This variable will store the last city added to the tour in each iteration
 

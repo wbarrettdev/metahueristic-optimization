@@ -10,8 +10,11 @@ from TSP_Individual import *
 import sys
 import numpy as np
 from scipy.spatial import distance_matrix
-import pandas as pd 
+import pandas as pd
 from time import perf_counter
+
+# Files according to studentID: inst-b.tsp inst-b.tsp
+# Default run parameters: data/inst-a.tsp 10 1000 100 0 0.9 0 0.2 0.1 0.5
 myStudentNum = 29480 # R00029480
 random.seed(myStudentNum)
 
@@ -41,7 +44,7 @@ class BasicTSP:
         self.best           = None
         self.popSize        = int(_popSize)
         self.genSize        = None
-        self.initH          = 0
+        self.initH          = 1
         self.xoverH        = int(_xoverH)
         self.mutH        = int(_mutH)
         self.crossoverProb  = float(_xoverProb)
@@ -53,6 +56,7 @@ class BasicTSP:
         self.elites        = round(self.popSize * float(_elites))
         self.trunkSize = round(self.popSize * float(_trunk))
         self.dists           = _dists
+        self.best_fitness_per_gen = []
 
         self.readInstance()
         self.bestInitSol = self.initPopulation()
@@ -90,7 +94,7 @@ class BasicTSP:
     def updateBest(self, candidate):
         if self.best == None or candidate.getFitness() < self.best.getFitness():
             self.best = candidate.copy()
-    
+
     def randomSelection(self):
         """
         Random (uniform) selection of two individuals
@@ -98,7 +102,7 @@ class BasicTSP:
         indA = self.matingPool[ random.randint(0, self.trunkSize-1) ]
         indB = self.matingPool[ random.randint(0, self.trunkSize-1) ]
         return [indA, indB]
-    
+
     def crossover(self, indA, indB):
         if random.random() > self.crossoverProb:
             child = Individual(self.genSize, self.data, 0, self.dists, random.choice([indA,indB]))
@@ -107,25 +111,52 @@ class BasicTSP:
             return self.oxCrossover(indA, indB)
         else:
             return self.uniformCrossover(indA, indB)
-        
+
 
     def oxCrossover(self, indA, indB):
         """
         Executes an ox crossover and returns the genes for a new individual
         """
-        
+        # Order crossover takes a segment from one parent and puts it into the child retaining order.
+        # fills in the remaining genes from the other parent in the order the appear
         midP=random.randint(1, self.genSize-2)
         p1 =  indA[0:midP]
         genes = p1 + [i for i in indB if i not in p1]
-        child = Individual(self.genSize, self.data, 0,self.dists, genes)
+        child = Individual(
+            self.genSize, # number of cities
+            self.data, # dict of coordinates
+            0, # Initialization heuristic (0 means random, 1 means insertion heuristic)
+            self.dists, # distance matrix between cities
+            genes   # genes of the child
+        )
         return child
 
     def uniformCrossover(self, indA, indB):
-        """
-        Implement uniform crossover and returns the genes for a new individual
-        """
-        pass
-    
+        # Generate a mask list the size of genSize.
+        # generate a random value between 0 and 1 for each gene.
+        mask = [random.random() for _ in range(self.genSize)]
+        child_genes = [None] * self.genSize
+        selected_cities = set()
+
+        # Add cities from indA where mask[i] < 0.5
+        for i in range(self.genSize):
+            if mask[i] < 0.5:
+                city = indA[i]
+                child_genes[i] = city
+                selected_cities.add(city)
+
+        # Fill missing positions with cities from indB in order
+        b_index = 0
+        for i in range(self.genSize):
+            if child_genes[i] is None:
+                while indB[b_index] in selected_cities:
+                    b_index += 1
+                child_genes[i] = indB[b_index]
+                selected_cities.add(indB[b_index])
+                b_index += 1
+
+        return Individual(self.genSize, self.data, 0, self.dists, child_genes)
+
     def mutation(self, ind):
         if random.random() > self.mutationRate:
             return
@@ -133,10 +164,10 @@ class BasicTSP:
             self.reciprocalMutation(ind)
         else:
             self.inversionMutation(ind)
-    
+
     def reciprocalMutation(self, ind):
         """
-        Mutate an individual by swapping two cities 
+        Mutate an individual by swapping two cities
         """
         indexA = random.randint(0, self.genSize-1)
         indexB = random.randint(0, self.genSize-1)
@@ -144,19 +175,23 @@ class BasicTSP:
         tmp = ind.genes[indexA]
         ind.genes[indexA] = ind.genes[indexB]
         ind.genes[indexB] = tmp
-    
+
     def inversionMutation(self, ind):
         """
-        Implement inversion mutation operator
+        Inversion works the same as reciprocal but reverses
+        the order of the cities between them as well
         """
-        pass
+        indexA = random.randint(0, self.genSize - 1)
+        indexB = random.randint(0, self.genSize - 1)
+        start, end = min(indexA, indexB), max(indexA, indexB)
+        ind.genes[start:end + 1] = ind.genes[start:end + 1][::-1]
 
     def updateMatingPool(self):
         """
         Updating the mating pool for creating a new generation.
         Uses truncation selection to fill pool.
         Also computes elite solutions
-        Note we are only storing the gene values and fitness of every 
+        Note we are only storing the gene values and fitness of every
         chromosome in prev pop
         """
         mybest = self.population[0:self.trunkSize]
@@ -169,10 +204,10 @@ class BasicTSP:
                 best_fits[worst_idx] = self.population[i].getFitness()
                 worst_fit = max(best_fits)
                 worst_idx = best_fits.index(worst_fit)
-                
+
         # Add copy of genes of each of the trunkSize best chromosomes in the old population
         self.matingPool = [[]+ind_i.genes for ind_i in mybest]
-                
+
         ## Add truncation to mating pool, separately store elite best
         if self.elites < self.trunkSize:
             x = self.elites
@@ -218,6 +253,7 @@ class BasicTSP:
         # print()
         self.population[:self.elites] = elite_sols
         self.newGeneration()
+        self.best_fitness_per_gen.append(self.best.getFitness())
 
     def search(self):
         """
@@ -231,16 +267,27 @@ class BasicTSP:
 
         return self.best.getFitness(), self.bestInitSol, self.best.genes
 
+def format_time(seconds):
+    """
+    Converts a time duration in seconds to a string formatted as Xm Ys Zms.
+
+    Args:
+        seconds (float): Time duration in seconds.
+    Returns:
+        str: Formatted time string (e.g., '2m 15s 123ms').
+    """
+    minutes = int(seconds // 60)
+    secs = int(seconds % 60)
+    ms = int((seconds - int(seconds)) * 1000)
+    return f"{minutes}m {secs}s {ms}ms"
 
 def main():
     if len(sys.argv) < 10:
         print ("Error - Incorrect input")
-        print ("Expecting python TSP.py [instance] [number of runs] [number of iterations] [population size]", 
+        print ("Expecting python TSP.py [instance] [number of runs] [number of iterations] [population size]",
                 "[xover operator] [xover prob] [mutate operator] [mutate prob] [elitism] [truncation]")
         sys.exit(0)
-    
-    
-    
+
     '''
     Reading in parameters, but it is up to you to implement what needs implementing
     TO DO:
@@ -252,22 +299,58 @@ def main():
     _, inst, nRuns, nIters, pop, xoverH, pC, mutH, pM, el, tr = sys.argv
     d = genDists(inst) # Get distance matrix
     nRuns = int(nRuns)
-    
+
+    run_times = []
+    overall_start = perf_counter()
+
     # Perform 1st run (initialising metric variables)
     random.seed(myStudentNum) # Initialise seed
+    start_time = perf_counter()
     ga = BasicTSP(inst, nIters, pop, xoverH, pC, mutH, pM, el, tr, d) # Create parameters
+
+    init_step_distances = []
+    for ind in ga.population:
+        init_step_distances.append(ind.getFitness() / ga.genSize)
+    avg_init_step_distance = sum(init_step_distances) / len(init_step_distances)
+
+
     bestDist, distInit, bestSol = ga.search()
+    end_time = perf_counter()
+    run_times.append(end_time - start_time)
     avgDist, avgInitDist = bestDist, distInit
-    
+
     # Perform remaining runs
     for i in range(1,nRuns):
         random.seed(myStudentNum+i*100) # Update seed
+        start_time = perf_counter()
         ga = BasicTSP(inst, nIters, pop, xoverH, pC, mutH, pM, el, tr, d)
         dist, distInit, sol = ga.search()
+        improvements = [
+            ga.best_fitness_per_gen[i] - ga.best_fitness_per_gen[i - 1]
+            for i in range(1, len(ga.best_fitness_per_gen))
+        ]
+        average_improvement = sum(improvements) / len(improvements) if improvements else 0
+        end_time = perf_counter()
+        run_times.append(end_time - start_time)
         avgDist += dist
         avgInitDist += distInit
         if dist < bestDist:
             bestDist = dist
             bestSol = sol
-           
+
+    overall_end = perf_counter()
+    average_run_time = sum(run_times) / nRuns
+    best_run_time = min(run_times)
+    overall_run_time = overall_end - overall_start
+
+    print(f"Average Step Distance (Initial Population): {avg_init_step_distance:.2f}")
+    print(f"Best Solution: {bestSol}")
+    print(f"Best Distance: {bestDist}")
+    print(f"Best Run Time: {format_time(best_run_time)}")
+    print(f"Average Distance: {avgDist/nRuns}")
+    print(f"Average improvement per generation: {average_improvement:.2f}")
+    print(f"Average Initial Distance: {avgInitDist/nRuns}")
+    print(f"Average Run Time: {format_time(average_run_time)}")
+    print(f"Overall Run Time: {format_time(overall_run_time)}")
+
 main()
