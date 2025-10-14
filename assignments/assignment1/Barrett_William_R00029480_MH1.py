@@ -44,7 +44,7 @@ class BasicTSP:
         self.best           = None
         self.popSize        = int(_popSize)
         self.genSize        = None
-        self.initH          = 1
+        self.initH          = 0
         self.xoverH        = int(_xoverH)
         self.mutH        = int(_mutH)
         self.crossoverProb  = float(_xoverProb)
@@ -301,6 +301,7 @@ def main():
     nRuns = int(nRuns)
 
     run_times = []
+    plotting_improvements = []
     overall_start = perf_counter()
 
     # Perform 1st run (initialising metric variables)
@@ -318,6 +319,7 @@ def main():
     end_time = perf_counter()
     run_times.append(end_time - start_time)
     avgDist, avgInitDist = bestDist, distInit
+    plotting_improvements.append((1, bestDist))
 
     # Perform remaining runs
     for i in range(1,nRuns):
@@ -337,6 +339,7 @@ def main():
         if dist < bestDist:
             bestDist = dist
             bestSol = sol
+            plotting_improvements.append((i, bestDist))
 
     overall_end = perf_counter()
     average_run_time = sum(run_times) / nRuns
@@ -352,5 +355,8 @@ def main():
     print(f"Average Initial Distance: {avgInitDist/nRuns}")
     print(f"Average Run Time: {format_time(average_run_time)}")
     print(f"Overall Run Time: {format_time(overall_run_time)}")
+    print(f"Iterative improvements over generations:")
+    for improvement in plotting_improvements:
+        print(f"\titeration: {improvement[0]} fitness: {improvement[1]}")
 
 main()
