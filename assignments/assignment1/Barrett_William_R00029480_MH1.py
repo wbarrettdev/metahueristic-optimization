@@ -118,7 +118,7 @@ class BasicTSP:
         Executes an ox crossover and returns the genes for a new individual
         """
         # Order crossover takes a segment from one parent and puts it into the child retaining order.
-        # fills in the remaining genes from the other parent in the order the appear
+        # fills in the remaining genes from the other parent in the order they appear
         midP=random.randint(1, self.genSize-2)
         p1 =  indA[0:midP]
         genes = p1 + [i for i in indB if i not in p1]

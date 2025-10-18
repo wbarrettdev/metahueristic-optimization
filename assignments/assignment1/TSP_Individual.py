@@ -67,7 +67,7 @@ class Individual:
         current_city = tour[0] # This variable will store the last city added to the tour in each iteration
 
         while len(unvisited) > 0:
-            # initialise the distance (bcost) to first unvisited city
+            # initialize the distance (bcost) to first unvisited city
             bCity = unvisited[0]
             bCost = self.dists[current_city-1, bCity-1]
             bIndex = 0
