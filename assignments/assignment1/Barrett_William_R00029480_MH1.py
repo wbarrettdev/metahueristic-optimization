@@ -264,6 +264,7 @@ class BasicTSP:
         while self.iteration < self.maxIterations:
             self.GAStep()
             self.iteration += 1
+            # print(f"Generation {self.iteration}, fitness {self.best.getFitness()}")
 
         return self.best.getFitness(), self.bestInitSol, self.best.genes
 
@@ -301,7 +302,6 @@ def main():
     nRuns = int(nRuns)
 
     run_times = []
-    plotting_improvements = []
     overall_start = perf_counter()
 
     # Perform 1st run (initialising metric variables)
@@ -309,17 +309,13 @@ def main():
     start_time = perf_counter()
     ga = BasicTSP(inst, nIters, pop, xoverH, pC, mutH, pM, el, tr, d) # Create parameters
 
-    init_step_distances = []
-    for ind in ga.population:
-        init_step_distances.append(ind.getFitness() / ga.genSize)
-    avg_init_step_distance = sum(init_step_distances) / len(init_step_distances)
-
-
     bestDist, distInit, bestSol = ga.search()
     end_time = perf_counter()
     run_times.append(end_time - start_time)
     avgDist, avgInitDist = bestDist, distInit
-    plotting_improvements.append((1, bestDist))
+
+    #print(f"Runs:")
+    #print(f"\trun: 0, fitness: {bestDist}, Best Fitness: {bestDist}")
 
     # Perform remaining runs
     for i in range(1,nRuns):
@@ -327,11 +323,6 @@ def main():
         start_time = perf_counter()
         ga = BasicTSP(inst, nIters, pop, xoverH, pC, mutH, pM, el, tr, d)
         dist, distInit, sol = ga.search()
-        improvements = [
-            ga.best_fitness_per_gen[i] - ga.best_fitness_per_gen[i - 1]
-            for i in range(1, len(ga.best_fitness_per_gen))
-        ]
-        average_improvement = sum(improvements) / len(improvements) if improvements else 0
         end_time = perf_counter()
         run_times.append(end_time - start_time)
         avgDist += dist
@@ -339,24 +330,21 @@ def main():
         if dist < bestDist:
             bestDist = dist
             bestSol = sol
-            plotting_improvements.append((i, bestDist))
+        #print(f"\trun: {i}, fitness: {dist}, Best Fitness: {bestDist}")
 
     overall_end = perf_counter()
     average_run_time = sum(run_times) / nRuns
     best_run_time = min(run_times)
     overall_run_time = overall_end - overall_start
 
-    print(f"Average Step Distance (Initial Population): {avg_init_step_distance:.2f}")
     print(f"Best Solution: {bestSol}")
-    print(f"Best Distance: {bestDist}")
     print(f"Best Run Time: {format_time(best_run_time)}")
-    print(f"Average Distance: {avgDist/nRuns}")
-    print(f"Average improvement per generation: {average_improvement:.2f}")
-    print(f"Average Initial Distance: {avgInitDist/nRuns}")
     print(f"Average Run Time: {format_time(average_run_time)}")
+    print(f"Best Distance: {bestDist}")
+    print(f"Average Distance: {avgDist/nRuns}")
+
+    print(f"Average Initial Distance: {avgInitDist/nRuns}")
     print(f"Overall Run Time: {format_time(overall_run_time)}")
-    print(f"Iterative improvements over generations:")
-    for improvement in plotting_improvements:
-        print(f"\titeration: {improvement[0]} fitness: {improvement[1]}")
+
 
 main()
