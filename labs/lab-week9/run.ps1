@@ -1,0 +1,1 @@
+python labGsat.py uf50-218 gsat 1 10 200 0.2 29480
