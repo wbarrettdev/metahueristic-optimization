@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Nov 20 17:44:57 2024
+Created on Mon Nov 24 21:04 2025
 
-@author: dgrimes
+@author: wbarrett
 """
 
 import numpy as np
@@ -11,7 +11,7 @@ from time import perf_counter
 import random
 import sys
 from os import listdir
-myStudentNum = 12345 # TODO Replace 12345 with your student number where R0002345 = 2345
+myStudentNum = 29480
 random.seed(myStudentNum)
 np.random.seed(myStudentNum)
 
