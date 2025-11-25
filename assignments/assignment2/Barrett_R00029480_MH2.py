@@ -53,8 +53,9 @@ class GSAT_solver:
         self.breakcounts = np.zeros(self.nVars+1,dtype=int) # sat that would go unsat
         self.lastFlip = np.full(self.nVars+1,-self.tl) # Iteration that variable was last updated in
         self.lastFlip[0] = self.maxFlips
-        self.bestSol = [0 for _ in range(self.nVars)]   # Current best solution found so far
+        self.bestSol = [0 for _ in range(self.nVars)]
         self.bestObj = self.nClauses+1          # Current best objective found so far (obj of bestSol)
+        self.bestObjForRestart = self.nClauses+1
         self.breakcounts[0] = self.nClauses+1 # sat that would go unsat
 
     def readInstance(self, fName):
@@ -246,7 +247,24 @@ class GSAT_solver:
         Advice: adapt Hsat code from selectHSATvar and add
         tabu criteria using LastFlip data structure
         '''
-        pass
+        gains = self.makecounts - self.breakcounts
+        hvars = np.where(gains == np.amax(gains))[0]
+
+        # Aspiration criteria: Allow tabu move only if it improves on best solution
+        best_gain = np.amax(gains)
+        if self.obj - best_gain < self.bestObjForRestart:
+            return np.random.choice(hvars)
+
+        # Variable is tabu if lastFlip + tabu length >= current iteration
+        non_tabu_filter = self.lastFlip[hvars] + self.tl < self.flips
+        non_tabu = hvars[non_tabu_filter]
+
+        # If non-tabu variables exist, select maximum age variable of non tabu variables
+        if len(non_tabu) > 0:
+            return non_tabu[np.where(self.lastFlip[non_tabu] == np.amin(self.lastFlip[non_tabu]))[0]][0]
+
+        # No improvement possible, select maximum age variable
+        return hvars[np.where(self.lastFlip[hvars] == np.amin(self.lastFlip[hvars]))[0]][0]
 
     def selectGrimesWSATvar(self):
         '''
@@ -277,6 +295,7 @@ class GSAT_solver:
         self.restarts = 0
         totalFlips = 0
         while self.restarts < self.maxRestarts and self.bestObj > 0:
+            self.bestObjForRestart = self.nClauses+1
             self.restarts += 1
             self.generateSolution()
             self.initial_cost()
@@ -286,6 +305,8 @@ class GSAT_solver:
             while self.flips < self.maxFlips and self.bestObj > 0:
                 nextvar = self.selectVar()
                 self.flip(nextvar)
+                if self.obj < self.bestObjForRestart:
+                    self.bestObjForRestart = self.obj
                 if self.obj < self.bestObj:
                     self.bestObj = self.obj
                     self.bestSol = self.state[1:]
