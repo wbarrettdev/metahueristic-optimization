@@ -276,7 +276,21 @@ class GSAT_solver:
         (c) Otherwise randomly choose unsat clause and choose variable with maximum net gain, breaking ties randomly
         Advice: adapt WalkSAT code from selectWalkSATvar
         '''
-        pass
+        # Positive gain is the number of variables that are unsat that will go sat
+        # negatice gain is the number of variables that are sat that will go unsat
+        # next gain is the sum of unsat  - the sum of unsat when we flip a variable.
+        zero_damage_variables = self._get_zero_damage_variables()
+        if len(zero_damage_variables) > 0:
+            return np.random.choice(zero_damage_variables)
+
+        random_unsat_clause = self._select_random_unsat_clause()
+
+        if random.random() < self.wp:
+            # TODO: is this all clauses? it says at least one.
+            unsat_variables = self._get_all_variables_in_unsat_clauses()
+            return np.random.choice(unsat_variables)
+
+        return self._select_max_gain_variable_from_clause(random_unsat_clause)
 
     def selectGrimesHSATvar(self):
         '''
@@ -288,8 +302,54 @@ class GSAT_solver:
         (c) Otherwise randomly choose unsat clause and choose variable with maximum net gain, breaking ties randomly
         Advice: adapt WalkSAT code from selectWalkSATvar
         '''
-        pass
+        zero_damage_variables = self._get_zero_damage_variables()
+        if len(zero_damage_variables) > 0:
+            return np.random.choice(zero_damage_variables)
 
+        if random.random() < self.wp:
+            unsat_variables = self._get_all_variables_in_unsat_clauses()
+            return unsat_variables[np.where(self.lastFlip[unsat_variables] == np.amin(self.lastFlip[unsat_variables]))[0]][0]
+
+        random_unsat_clause = self._select_random_unsat_clause()
+        return self._select_max_gain_variable_from_clause(random_unsat_clause)
+
+    def _get_all_variables_in_unsat_clauses(self):
+        """Returns all variables involved in all unsatisfied clause."""
+        variables = set()
+        for clause_index in self.unsat_clauses:
+            for literal in self.clauses[clause_index]:
+                variables.add(abs(literal))
+        return np.array(list(variables))
+
+    def _select_random_unsat_clause(self):
+        """Select a random unsatisfied clause."""
+        return random.choice(tuple(self.unsat_clauses))
+
+    def _select_max_gain_variable_from_clause(self, clause_index):
+        """
+        Select a variable with maximum net gain from a clause.
+        Break ties randomly.
+        """
+        variables = self._get_variables_from_clause(clause_index)
+        net_gains = self._calculate_gains(variables)
+        gains = self._get_gains_array(net_gains)
+        return variables[np.random.choice(gains)]
+
+    def _get_variables_from_clause(self, clause_index):
+        """Get variables from a clause"""
+        return [abs(lit) for lit in self.clauses[clause_index]]
+
+    def _calculate_gains(self, variables):
+        """Calculates gain """
+        return np.array([self.makecounts[var] - self.breakcounts[var] for var in variables])
+
+    def _get_gains_array(self, gains):
+        """Returns an array of indices of maximum gain."""
+        return np.where(gains == np.amax(gains))[0]
+
+    def _get_zero_damage_variables(self):
+        """Returns variables with positive gain and zero damage."""
+        return np.where((self.makecounts > 0) & (self.breakcounts == 0))[0]
         
     def solve(self):
         self.restarts = 0
